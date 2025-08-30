@@ -11,6 +11,7 @@ const USERS_FILE = './users.json';
 
 app.use(cors());
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
 // Load users or initialize file
 let users = [];
