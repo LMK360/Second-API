@@ -1,0 +1,18 @@
+{
+  "name": "second-api",
+  "version": "1.0.0",
+  "description": "Simple auth API with signup and login",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "fs": "0.0.1-security"
+  },
+  "author": "LMK360",
+  "license": "MIT"
+}
