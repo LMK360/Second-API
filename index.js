@@ -1,55 +1,53 @@
-const express = require('express');
-const fs = require('fs');
-const cors = require('cors');
-const bodyParser = require('body-parser');
-const bcrypt = require('bcryptjs');
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
 
-const app = express();
-const PORT = process.env.PORT || 8000;
+    if (request.method !== "POST") {
+      return new Response("Method Not Allowed", { status: 405 });
+    }
 
-const USERS_FILE = './users.json';
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return new Response(JSON.stringify({ message: "Invalid JSON" }), { status: 400 });
+    }
 
-app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+    // ✅ SIGNUP
+    if (url.pathname === "/signup") {
+      const { email, password } = body;
 
-// Load users or initialize file
-let users = [];
-if (fs.existsSync(USERS_FILE)) {
-  users = JSON.parse(fs.readFileSync(USERS_FILE));
-} else {
-  fs.writeFileSync(USERS_FILE, JSON.stringify([]));
-}
+      if (!email || !password) {
+        return new Response(JSON.stringify({ message: "Email and password required" }), { status: 400 });
+      }
 
-// ✅ Signup route
-app.post('/signup', async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ message: 'Email and password required' });
+      try {
+        await env.DB.prepare(
+          "INSERT INTO users (email, password) VALUES (?, ?)"
+        ).bind(email, password).run();
 
-  if (users.find(u => u.email === email)) {
-    return res.status(409).json({ message: 'User already exists' });
+        return new Response(JSON.stringify({ message: "Signup successful" }), { status: 200 });
+
+      } catch (err) {
+        return new Response(JSON.stringify({ message: "User already exists" }), { status: 409 });
+      }
+    }
+
+    // ✅ LOGIN
+    if (url.pathname === "/login") {
+      const { email, password } = body;
+
+      const result = await env.DB.prepare(
+        "SELECT * FROM users WHERE email = ?"
+      ).bind(email).first();
+
+      if (!result || result.password !== password) {
+        return new Response(JSON.stringify({ message: "Invalid credentials" }), { status: 401 });
+      }
+
+      return new Response(JSON.stringify({ message: "Login successful" }), { status: 200 });
+    }
+
+    return new Response("Not found", { status: 404 });
   }
-
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const user = { email, password: hashedPassword };
-  users.push(user);
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users));
-
-  res.json({ message: 'Signup successful' });
-});
-
-// ✅ Login route
-app.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-  const user = users.find(u => u.email === email);
-  if (!user) return res.status(401).json({ message: 'Invalid credentials' });
-
-  const match = await bcrypt.compare(password, user.password);
-  if (!match) return res.status(401).json({ message: 'Invalid credentials' });
-
-  res.json({ message: 'Login successful' });
-});
-
-app.listen(PORT, () => {
-  console.log(`Auth server running on port ${PORT}`);
-});
+};
